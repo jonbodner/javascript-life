@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Canvas tutorial</title>
+    <script type="text/javascript">
+
+    function draw(){
+        var canvas = document.getElementById('tutorial');
+        if (canvas.getContext){
+          var ctx = canvas.getContext('2d');
+          var drawState = false;
+          var doClear = false;
+          canvas.addEventListener("mousemove", function() {
+            var x = event.pageX - canvas.offsetLeft;
+            var y = event.pageY - canvas.offsetTop;
+            var xBlockStart = Math.floor(x/10);
+            var yBlockStart = Math.floor(y/10);
+            updateContent('xpos',xBlockStart);
+            updateContent('ypos',yBlockStart);
+            if(drawState) {
+              drawRect(ctx,x,y, doClear);
+            }
+          }, false);
+          canvas.addEventListener("mousedown", function() {
+            var x = event.pageX - canvas.offsetLeft;
+            var y = event.pageY - canvas.offsetTop;
+            var xBlockStart = Math.floor(x/10)*10;
+            var yBlockStart = Math.floor(y/10)*10;
+            var p = ctx.getImageData(xBlockStart,yBlockStart,1,1).data;
+            doClear = (p[3] == 255);
+            drawState = true;
+          }, false);
+          canvas.addEventListener("mouseup", function() {
+            var x = event.pageX - canvas.offsetLeft;
+            var y = event.pageY - canvas.offsetTop;
+            drawRect(ctx, x, y, doClear);
+            drawState= false;
+          }, false);
+        }
+        var clearButton = document.getElementById('clear');
+        clearButton.addEventListener('click', function() {
+          clear();
+        }, false);
+
+        var startButton = document.getElementById('start');
+        startButton.addEventListener('click', function() {
+          startLife();
+        }, false);
+
+        var stopButton = document.getElementById('stop');
+        stopButton.addEventListener('click', function() {
+          stopLife();
+        }, false);
+
+        var randomButton = document.getElementById("random");
+        randomButton.addEventListener('click', function() {
+          fillRandom();
+        }, false);
+      }
+
+      function drawRect(ctx, x, y, doClear) {
+        var xBlockStart = Math.floor(x/10)*10;
+        var yBlockStart = Math.floor(y/10)*10;
+        ctx.strokeStyle='black';
+          if (doClear) {
+            ctx.clearRect(xBlockStart,yBlockStart,10,10);
+          } else {
+            ctx.fillRect(xBlockStart,yBlockStart,10,10);
+          }
+      }
+
+      function fillRandom() {
+        if (timerId != -1) {
+          return;
+        }
+        var canvas = document.getElementById('tutorial');
+        if (canvas.getContext){
+          var ctx = canvas.getContext('2d');
+          ctx.clearRect(0,0,canvas.height, canvas.width);
+          var outImageData = ctx.createImageData(canvas.height, canvas.width);
+          var outP = outImageData.data;
+          for (var x = 0;x<canvas.width;x+=10) {
+            for (var y = 0;y<canvas.height;y+=10) {
+              var newVal = 0;
+              if (Math.random() < 0.15) {
+                newVal = 255;
+              }
+              //set for everything within the 10x10 block
+              for (var x1 = x;x1<x+10;x1++) {
+                for(var y1 = y;y1<y+10;y1++) {
+                  var subPos = calcPos(x1,y1,canvas.width);
+                  outP[subPos] = newVal;
+                }
+              }
+            }
+          }
+          ctx.putImageData(outImageData,0,0);
+
+          count = 0;
+          updateContent('count',count);
+
+        }
+
+      }
+
+      function clear() {
+        if (timerId != -1) {
+          return;
+        }
+        var canvas = document.getElementById('tutorial');
+        if (canvas.getContext){
+          var ctx = canvas.getContext('2d');
+          ctx.clearRect(0,0,canvas.height, canvas.width);
+          count = 0;
+          updateContent('count',count);
+        }
+      }
+
+      function updateContent(elName, value) {
+        var el = document.getElementById(elName);
+        el.innerHTML=''+value;
+      }
+
+      //todo
+      //port over the count function
+      //use the imageData function to get the state of the canvas
+      //and make changes in a function called by the timer
+      //use setTimeout and cancels for it to start and stop
+      var timerId = -1;
+      var count = 0;
+
+      function startLife() {
+        if (timerId == -1) {
+          update();
+        }
+      }
+
+      function stopLife() {
+        if (timerId != -1) {
+          clearTimeout(timerId);
+        }
+        timerId = -1;
+      }
+
+      function calcPos(x,y,width) {
+        //console.log("input points:",x,y);
+        var pos = x * width + y;
+        pos = pos * 4 + 3;
+        //console.log("calculated pos:", pos);
+        return pos;
+      }
+
+      function update() {
+        var canvas = document.getElementById('tutorial');
+        if (canvas.getContext){
+          var ctx = canvas.getContext('2d');
+          var imageData = ctx.getImageData(0,0,canvas.height, canvas.width);
+          var p = imageData.data;
+          var outImageData = ctx.createImageData(imageData);
+          var outP = outImageData.data;
+          for (var x = 0;x<canvas.width;x+=10) {
+            for (var y = 0;y<canvas.height;y+=10) {
+              var neighbors = nCount(p, x, y, canvas.width);
+              var pos = calcPos(x,y,canvas.width);
+              var newVal = calc(p[pos],neighbors);
+              //set for everything within the 10x10 block
+              for (var x1 = x;x1<x+10;x1++) {
+                for(var y1 = y;y1<y+10;y1++) {
+                  var subPos = calcPos(x1,y1,canvas.width);
+                  outP[subPos] = newVal;
+                }
+              }
+            }
+          }
+          ctx.putImageData(outImageData,0,0);
+        }
+
+        count++;
+        updateContent('count',count);
+        timerId = setTimeout(update, 100);
+      }
+
+      function nCount(p, x, y, width) {
+        //console.log("getting count for ", x,y)
+        var total = 0;
+        for (var x1 = x - 10; x1 <= x+10; x1+=10) {
+          for (var y1 = y - 10; y1 <= y+10; y1+=10) {
+            if (x1 < 0 || y1 < 0 || x1 >= width || y1 >= width || (x1 == x && y1 == y)) {
+              continue;
+            }
+            if (p[calcPos(x1,y1,width)] == 255) {
+              //console.log("found one at ",x1,y1);
+              total++;
+            }
+          }
+        }
+        //console.log("count is ", total);
+        return total;
+      }
+
+      function calc(curVal, neighbors) {
+        if (neighbors < 2 || neighbors > 3) {
+          return 0;
+        }
+        if (neighbors == 3) {
+          return 255;
+        }
+        return curVal;
+      }
+
+
+    </script>
+    <style type="text/css">
+      canvas { border: 1px solid black; }
+    </style>
+  </head>
+  <body onload="draw();">
+    <canvas id="tutorial" width="1000" height="1000"></canvas>
+    <div>
+    X: <span id="xpos"></span>
+    Y: <span id="ypos"></span>
+  </div>
+  <div id="controls">
+    <button id="random">Random</button>
+    <button id="clear">Clear</button>
+    <button id="start">Start</button>
+    <button id="stop">Stop</button>
+  </div>
+  <div id="status">
+    Count: <span id="count"></span>
+  </div>
+  Draw patterns with your mouse or click Random to start with a filled-in board.
+  <br/>
+  Click Start to start Life, Stop to stop it, Clear to clear the board.
+  <br/>
+  You can draw while Life is running.
+  <br/>
+  You can clear the board when Life is stopped.
+  </body>
+</html>
