@@ -5,6 +5,7 @@
     <title>Game of Life</title>
     <script type="text/javascript">
 
+    var delay = 100;
     function draw(){
         var canvas = document.getElementById('board');
         if (canvas.getContext){
@@ -53,10 +54,22 @@
           stopLife();
         }, false);
 
+        var stepButton = document.getElementById('step');
+        stepButton.addEventListener('click', function() {
+          stepLife();
+        }, false);
+
         var randomButton = document.getElementById("random");
         randomButton.addEventListener('click', function() {
           fillRandom();
         }, false);
+
+        var delayMap = {1:2000, 2:1000, 3:500, 4:250, 5:100, 6:50, 7:10};
+        var rangeSlider = document.getElementById("rangeSlider");
+        rangeSlider.addEventListener('change', function() {
+          delay = delayMap[rangeSlider.value];
+          updateContent('range',(delay/1000)+"s");
+        })
       }
 
       function drawRect(ctx, x, y, doClear) {
@@ -132,7 +145,13 @@
 
       function startLife() {
         if (timerId == -1) {
-          update();
+          update(true);
+        }
+      }
+
+      function stepLife() {
+        if (timerId == -1) {
+          update(false);
         }
       }
 
@@ -151,7 +170,7 @@
         return pos;
       }
 
-      function update() {
+      function update(repeat) {
         var canvas = document.getElementById('board');
         if (canvas.getContext){
           var ctx = canvas.getContext('2d');
@@ -178,7 +197,9 @@
 
         count++;
         updateContent('count',count);
-        timerId = setTimeout(update, 100);
+        if(repeat) {
+          timerId = setTimeout(function() { update(repeat)}, delay);
+        }
       }
 
       function nCount(p, x, y, width) {
@@ -226,6 +247,10 @@
     <button id="clear">Clear</button>
     <button id="start">Start</button>
     <button id="stop">Stop</button>
+    <button id="step">Step</button>
+    <br/>
+    Speed: <input id="rangeSlider" type="range" min="1" max="7" value="5"/>
+    Next Step every <span id="range">0.1s</span>
   </div>
   <div id="status">
     Count: <span id="count"></span>
